@@ -1,0 +1,343 @@
+### 大一下时的部分笔记
+和下划线一个效果，可忽略提到但未用到的变量，从而不被warning
+```
+#[allow(unused_variables)]
+```
+
+这两段代码我看不懂语法（当时）
+```
+fn main() {
+    let x = define_x();
+    println!("{}, world", x);
+}
+
+fn define_x() -> String {
+    let x = "hello".to_string();
+    x
+}
+```
+
+```
+fn main() {
+    let x = define_x();
+    println!("{:?}, world", x);
+}
+
+fn define_x() -> &'static str {
+    let x = "hello";
+    x
+}
+```
+我当时的疑问点：对这两个函数的区别，返回类型`String`和`&'static str`，以及`println!`中的格式化符号`{}`和`{:?}`有疑问。
+以下为我如今的理解：
+
+#### 第一个程序：
+
+```
+fn main() {          // 程序入口函数
+    let x = define_x();  // 调用 define_x() 函数并将返回值绑定到变量 x
+    println!("{}, world", x); // 打印格式化字符串
+}
+
+// 定义返回 String 类型的函数
+fn define_x() -> String {  // -> 表示返回值类型
+    let x = "hello".to_string(); // 将字符串字面量转换为 String 类型
+    x  // 返回 x（注意这里没有分号，表示表达式返回值）
+}
+```
+其中所有权转移：
+
+String 类型在赋值时会转移所有权
+
+define_x 函数将字符串所有权转移给 main 函数的 x
+#### 第二个程序：
+
+```
+fn main() {
+    let x = define_x();  // 获取字符串切片引用
+    println!("{:?}, world", x); // 使用调试格式打印
+}
+
+// 定义返回字符串切片的函数
+fn define_x() -> &'static str {  // 'static 表示静态生命周期
+    let x = "hello";  // 字符串字面量（存储在二进制文件的只读段）
+    x  // 返回字符串切片引用
+}
+```
+查阅得知：
+
+两种方式哪种更好？
+
+需要修改字符串：用 String
+
+只读场景：用 &'static str（性能更好）
+
+
+---
+
+#### 100题里最后几道题卡住的点总结
+```
+use std::fmt::{self, Display, Formatter};
+use std::ptr::NonNull;
+use std::vec::*;
+
+// --------------------- 节点结构体 ---------------------
+#[derive(Debug)]
+struct Node<T> {
+    val: T,
+    next: Option<NonNull<Node<T>>>,
+}
+
+impl<T> Node<T> {
+    fn new(t: T) -> Node<T> {
+        Node {
+            val: t,
+            next: None,
+        }
+    }
+}
+
+// --------------------- 链表结构体 ---------------------
+#[derive(Debug)]
+struct LinkedList<T> {
+    length: u32,
+    start: Option<NonNull<Node<T>>>,
+    end: Option<NonNull<Node<T>>>,
+}
+
+impl<T> Default for LinkedList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> LinkedList<T> {
+    // 修改点1: 添加类型约束 Ord 用于元素比较
+    pub fn merge(list_a: LinkedList<T>, list_b: LinkedList<T>) -> Self
+    where
+        T: Ord, // 新增类型约束
+    {
+        /// 辅助函数：将链表转换为 Vec<T>
+        /// 修改点2: 安全释放内存的关键逻辑
+        fn collect_elements<T>(mut list: LinkedList<T>) -> Vec<T> {
+            let mut vec = Vec::new();
+            // 取出链表头节点并置空，防止重复释放
+            let mut current = list.start.take(); 
+            
+            // 遍历所有节点
+            while let Some(node_ptr) = current {
+                unsafe {
+                    // 将原始指针转换为 Box 获取所有权
+                    let boxed_node = Box::from_raw(node_ptr.as_ptr());
+                    vec.push(boxed_node.val);  // 收集值
+                    current = boxed_node.next; // 移动到下一个节点
+                }
+            }
+            vec
+        }
+
+        // 转换两个链表为 Vec
+        let vec_a = collect_elements(list_a);
+        let vec_b = collect_elements(list_b);
+
+        // 修改点3: 双指针法合并有序数组
+        let mut merged = Vec::with_capacity(vec_a.len() + vec_b.len());
+        let (mut i, mut j) = (0, 0);
+
+        // 比较并选择较小元素
+        while i < vec_a.len() && j < vec_b.len() {
+            if vec_a[i] <= vec_b[j] {
+                merged.push(vec_a[i]);
+                i += 1;
+            } else {
+                merged.push(vec_b[j]);
+                j += 1;
+            }
+        }
+
+        // 添加剩余元素
+        merged.extend(vec_a[i..].iter().cloned());
+        merged.extend(vec_b[j..].iter().cloned());
+
+        // 修改点4: 构建新链表
+        let mut new_list = LinkedList::new();
+        for val in merged {
+            new_list.add(val);
+        }
+
+        new_list
+    }
+
+    // --------------- 以下为原有代码 ---------------
+    pub fn new() -> Self {
+        Self {
+            length: 0,
+            start: None,
+            end: None,
+        }
+    }
+
+    pub fn add(&mut self, obj: T) {
+        let mut node = Box::new(Node::new(obj));
+        node.next = None;
+        let node_ptr = Some(unsafe { NonNull::new_unchecked(Box::into_raw(node)) };
+        match self.end {
+            None => self.start = node_ptr,
+            Some(end_ptr) => unsafe { (*end_ptr.as_ptr()).next = node_ptr },
+        }
+        self.end = node_ptr;
+        self.length += 1;
+    }
+
+    pub fn get(&mut self, index: i32) -> Option<&T> {
+        self.get_ith_node(self.start, index)
+    }
+
+    fn get_ith_node(&mut self, node: Option<NonNull<Node<T>>>, index: i32) -> Option<&T> {
+        match node {
+            None => None,
+            Some(next_ptr) => match index {
+                0 => Some(unsafe { &(*next_ptr.as_ptr()).val }),
+                _ => self.get_ith_node(unsafe { (*next_ptr.as_ptr()).next }, index - 1),
+            },
+        }
+    }
+}
+
+// --------------------- 显示实现 ---------------------
+impl<T> Display for LinkedList<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self.start {
+            Some(node) => write!(f, "{}", unsafe { node.as_ref() }),
+            None => Ok(()),
+        }
+    }
+}
+
+impl<T> Display for Node<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self.next {
+            Some(node) => write!(f, "{}, {}", self.val, unsafe { node.as_ref() }),
+            None => write!(f, "{}", self.val),
+        }
+    }
+}
+
+// --------------------- 测试用例 ---------------------
+#[cfg(test)]
+mod tests {
+    use super::LinkedList;
+
+    // ... 原有测试代码保持不变 ...
+}
+
+```
+这道题做了好久.......
+
+
+
+```
+// --------------------- 栈结构实现 ---------------------
+#[derive(Debug)]
+struct Stack<T> {
+    size: usize,
+    data: Vec<T>,
+}
+
+impl<T> Stack<T> {
+    /// 创建新栈
+    fn new() -> Self {
+        Self {
+            size: 0,
+            data: Vec::new(),
+        }
+    }
+
+    /// 检查栈是否为空
+    fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    /// 获取栈长度
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    /// 清空栈
+    fn clear(&mut self) {
+        self.size = 0;
+        self.data.clear();
+    }
+
+    /// 修改点1: 优化入栈操作注释
+    /// 元素入栈
+    fn push(&mut self, val: T) {
+        self.data.push(val);
+        self.size += 1;  // 维护size与data长度同步
+    }
+
+    /// 修改点2: 明确空栈处理逻辑
+    /// 元素出栈
+    fn pop(&mut self) -> Option<T> {
+        if self.is_empty() {
+            None
+        } else {
+            self.size -= 1;  // 先减size再弹出
+            self.data.pop()   // 直接使用Vec的pop方法
+        }
+    }
+
+    // ... 其他方法保持不变 ...
+}
+
+// --------------------- 括号匹配函数 ---------------------
+/// 判断括号是否匹配
+fn bracket_match(bracket: &str) -> bool {
+    let mut stack = Stack::new();
+    
+    // 遍历每个字符
+    for ch in bracket.chars() {
+        match ch {
+            // 修改点3: 明确左括号处理
+            // 遇到左括号直接入栈
+            '(' | '{' | '[' => stack.push(ch),
+            
+            // 修改点4: 统一右括号处理逻辑
+            // 处理右括号时检查栈顶元素
+            ')' => {
+                if stack.pop() != Some('(') {  // 弹出并检查是否匹配
+                    return false;  // 不匹配立即返回
+                }
+            },
+            '}' => {
+                if stack.pop() != Some('{') {
+                    return false;
+                }
+            },
+            ']' => {
+                if stack.pop() != Some('[') {
+                    return false;
+                }
+            },
+            _ => {} // 忽略非括号字符
+        }
+    }
+    
+    // 修改点5: 最终必须检查栈是否为空
+    stack.is_empty()  // 栈空说明所有括号匹配完成
+}
+
+// --------------------- 测试用例 ---------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 测试用例保持不变...
+}
+```
