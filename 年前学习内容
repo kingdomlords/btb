@@ -1,0 +1,656 @@
+### 基础阶段简易复习
+---
+-  单元类型:唯一可能值就是'()'
+-  复合类型：数组、元组
+-  元组：(1，true)
+-  函数 fn关键字
+-  loop循环
+- -  (break跳出循环 continue新迭代循环)
+- - 嵌套循环(循环标签)
+- 所有权概念
+  - 每个值任一时刻有且仅有一个所有者
+  - 所有者离开作用域，这个值将被丢弃
+- string本身不是字符串，它用来存储字符串
+- 
+
+### Rust 知识点学习
+
+---
+
+#### 2.3.1 所有权
+1. **所有权规则**  
+   - Rust 中每个值有且仅有一个所有者  
+   - 当所有者离开作用域，值会被自动释放  
+   - 所有权可通过赋值操作转移（move） 
+   
+```
+// 所有权转移示例
+let s1 = String::from("hello");
+let s2 = s1;  // s1 的所有权转移给 s2
+// println!("{}", s1); // 编译错误：value borrowed after move
+
+// 函数传参所有权示例
+fn take_ownership(s: String) {
+    println!("{}", s);
+}
+let s = String::from("hello");
+take_ownership(s);  // 所有权转移给函数参数
+// println!("{}", s); // 编译错误：value borrowed after move
+
+// 引用（借用）示例
+let s = String::from("hello");
+let len = calculate_length(&s);  // 不可变借用
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
+}
+```
+
+
+2. **String 类型的所有权**  
+   - `String` 类型数据存储在堆上，`&str` 是字符串切片  
+   - 赋值操作（如 `let s2 = s1`）会导致所有权转移，原变量失效 
+   
+```
+// String 与 &str 转换
+let s = String::from("hello");
+let slice: &str = &s[..];
+
+// 结构体示例
+struct User {
+    name: String,
+    age: u8,
+}
+let user = User {
+    name: String::from("Alice"),
+    age: 30,
+};
+
+// 枚举示例
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+}
+
+// 数组与 Vector
+let arr = [1, 2, 3];       // 栈上数组
+let vec = vec![1, 2, 3];   // 堆上动态数组
+```
+
+
+
+---
+
+### 2.4 复合类型
+
+#### 一、元组（Tuple）
+- **定义**：将多个不同类型的值组合成一个复合类型。
+- **语法**：
+  ```rust
+  let tup: (i32, f64, u8) = (500, 6.4, 1); // 声明
+  let (x, y, z) = tup;      // 解构赋值
+  let first = tup.0;        // 索引访问（从0开始）
+  ```
+- **特点**：
+  - 固定长度，元素类型可不同。
+  - 常用于函数多返回值。
+
+---
+
+#### 二、结构体（Struct）
+- **定义**：自定义数据类型，包含多个命名字段。
+- **类型**：
+  1. **普通结构体**：
+     ```rust
+     struct User {
+         username: String,
+         email: String,
+         sign_in_count: u64,
+         active: bool,
+     }
+     ```
+     实例化：
+     ```rust
+     let user1 = User {
+         email: String::from("someone@example.com"),
+         username: String::from("user123"),
+         active: true,
+         sign_in_count: 1,
+     };
+     ```
+     访问字段：`user1.email`
+
+  2. **元组结构体**（无名字段）：
+     ```rust
+     struct Color(i32, i32, i32);
+     let black = Color(0, 0, 0);
+     ```
+
+  3. **单元结构体**（无字段）：
+     ```rust
+     struct Empty;
+     ```
+
+---
+
+#### 三、枚举（Enum）
+- **定义**：列举所有可能的成员，每个成员可关联不同数据。
+- **语法**：
+  ```rust
+  enum Message {
+      Quit,                       // 无数据
+      Move { x: i32, y: i32 },    // 匿名结构体
+      Write(String),              // 单个值
+      ChangeColor(i32, i32, i32), // 元组
+  }
+  ```
+- **常用枚举**：
+  - `Option<T>`：表示值的存在（`Some(T)`）或不存在（`None`）。
+    ```rust
+    let some_number = Some(5);
+    let absent: Option<i32> = None;
+    ```
+  - `Result<T, E>`：用于错误处理（`Ok(T)`和`Err(E)`）。
+
+---
+
+#### 四、数组（Array）
+- **定义**：固定长度，元素类型相同，栈上分配。
+- **语法**：
+  ```rust
+  let a = [1, 2, 3, 4, 5];           // 类型推断
+  let b: [i32; 5] = [1, 2, 3, 4, 5]; // 显式声明类型和长度
+  let c = [3; 5];                    // 等价于 [3, 3, 3, 3, 3]
+  ```
+- **访问**：
+  ```rust
+  let first = a[0];  // 索引访问（越界会导致panic）
+  ```
+
+---
+
+#### 五、切片（Slice）
+- **定义**：数组的动态视图，引用数组的连续部分。
+- **语法**：
+  ```rust
+  let arr = [1, 2, 3, 4, 5];
+  let slice = &arr[1..3]; // 包含索引1和2，不包含3
+  ```
+- **特点**：
+  - 类型为 `&[T]` 或 `&mut [T]`。
+  - 动态长度，运行时确定。
+
+---
+
+#### 六、字符串
+- **两种类型**：
+  - `String`：可变的堆分配字符串。
+  - `&str`：不可变的字符串切片（常以 `&str` 形式出现）。
+- **操作示例**：
+  ```rust
+  let s = String::from("hello");
+  let slice = &s[0..2];      // 切片获取"he"
+  let s2 = s + " world!";    // 拼接（s的所有权被移动）
+  let s3 = format!("{}{}", s, " world!"); // 无所有权转移
+  ```
+
+
+---
+
+#### 七、关键区别与注意事项
+1. **数组 vs 切片**：
+   - 数组大小固定，栈分配；切片是动态视图。
+2. **String vs &str**：
+   - `String` 可修改，拥有所有权；`&str` 是借用。
+3. **结构体字段所有权**：
+   - 若结构体包含引用，需指定生命周期参数。
+4. **模式匹配**：
+   - 通过 `match` 解构枚举、元组等类型：
+     ```rust
+     match message {
+         Message::Quit => quit(),
+         Message::Move { x, y } => move_to(x, y),
+         _ => (),
+     }
+     ```
+
+---
+
+
+3. **变量绑定背后的数据交互**  
+   - 基本类型（实现了 `Copy` trait）会自动拷贝  
+   - 非 `Copy` 类型（如 `String`）赋值会转移所有权  
+
+4. **函数传参与所有权**  
+   - 函数参数传递会发生所有权转移或拷贝  
+   - 函数返回值可转移所有权  
+
+5. **引用与作用域**  
+   - 引用（`&`）允许借用值而不获取所有权  
+   - 同一作用域内可变引用（`&mut`）具有独占性  
+
+---
+
+#### 2.4 复合类型
+1. **字符串与切片**  
+   - `String` 是可变的，`&str` 是不可变的  
+   - 字符串字面值是 `&str` 类型  
+
+2. **元组与结构体**  
+   - 元组：固定长度，异构数据（如 `(i32, f64, u8)`）  
+   - 结构体：自定义数据结构，需显式声明字段及类型  
+
+3. **枚举与模式匹配**  
+   - 枚举可携带数据（如 `Option<T>` 的 `Some(T)` 和 `None`）  
+   - `match` 表达式处理所有可能分支  
+
+4. **数组与 Vector**  
+   - 数组：固定长度，栈上分配  
+   - `Vec<T>`：动态大小，堆上分配  
+
+---
+以下是《Rust语言圣经》中 **2.6 模式匹配** 的详细整理：
+
+---
+
+## 2.6 模式匹配
+
+### 一、`match` 表达式
+#### 1. 基本语法
+```rust
+let value = 3;
+match value {
+    1 => println!("一"),
+    2 | 3 => println!("二或三"),   // 匹配多个值
+    4..=6 => println!("四到六"),  // 范围匹配
+    _ => println!("其他"),        // 默认分支
+}
+```
+- **特点**：
+  - 必须穷尽所有可能情况，否则编译报错（用 `_` 通配符兜底）。
+  - 每个分支返回值的类型必须一致。
+
+#### 2. 绑定值
+- 在模式中绑定变量：
+  ```rust
+  enum Message {
+      Quit,
+      Move { x: i32, y: i32 },
+  }
+
+  let msg = Message::Move { x: 10, y: 20 };
+  match msg {
+      Message::Quit => (),
+      Message::Move { x, y } => println!("移动到坐标 ({}, {})", x, y),
+  }
+  ```
+
+#### 3. 模式解构
+- **解构结构体**：
+  ```rust
+  struct Point { x: i32, y: i32 }
+  let p = Point { x: 0, y: 7 };
+  match p {
+      Point { x, y: 0 } => println!("在x轴上，x = {}", x),
+      Point { x, y } => println!("在坐标 ({}, {})", x, y),
+  }
+  ```
+
+- **解构元组**：
+  ```rust
+  let tuple = (1, 2, 3);
+  match tuple {
+      (1, y, z) => println!("第一个元素是1，y={}, z={}", y, z),
+      _ => (),
+  }
+  ```
+
+- **解构数组**：
+  ```rust
+  let arr = [1, 2, 3];
+  match arr {
+      [1, second, third] => println!("第二个元素是 {}, 第三个是 {}", second, third),
+      _ => (),
+  }
+  ```
+
+#### 4. 模式守卫（Guard）
+- 在模式后添加 `if` 条件：
+  ```rust
+  let num = Some(4);
+  match num {
+      Some(x) if x < 5 => println!("小于5: {}", x),
+      Some(x) => println!("其他值: {}", x),
+      None => (),
+  }
+  ```
+
+---
+
+### 二、`if let` 和 `while let`
+#### 1. `if let`：简化单分支匹配
+- **语法**：
+  ```rust
+  let some_value = Some(3);
+  if let Some(x) = some_value {
+      println!("值为 {}", x);
+  } else {
+      println!("无值");
+  }
+  ```
+- **适用场景**：只需处理一种匹配模式时替代 `match`。
+
+#### 2. `while let`：简化循环中的模式匹配
+- **语法**：
+  ```rust
+  let mut stack = vec![1, 2, 3];
+  while let Some(top) = stack.pop() {
+      println!("弹出元素: {}", top);
+  }
+  ```
+- **作用**：循环直到模式不匹配。
+
+---
+
+### 三、模式中的 `ref` 和 `ref mut`
+- **用途**：匹配引用时避免所有权转移。
+- **示例**：
+  ```rust
+  let value = 5;
+  match value {
+      ref r => println!("引用值: {}", r), // r 是 &i32 类型
+  }
+
+  let mut mut_value = 6;
+  match mut_value {
+      ref mut m => {
+          *m += 10; // 修改值
+          println!("新值: {}", m); // 输出 16
+      },
+  }
+  ```
+
+---
+
+### 四、`@` 绑定
+- **用途**：在匹配模式的同时绑定变量。
+- **示例**：
+  ```rust
+  enum Message {
+      Hello { id: i32 },
+  }
+
+  let msg = Message::Hello { id: 5 };
+  match msg {
+      Message::Hello { id: id_variable @ 3..=7 } => {
+          println!("id在3到7之间: {}", id_variable)
+      },
+      Message::Hello { id: 10..=12 } => println!("id在10到12之间"),
+      Message::Hello { id } => println!("其他id: {}", id),
+  }
+  ```
+
+---
+
+### 五、模式匹配的常见用法
+1. **处理 `Option` 和 `Result`**：
+   ```rust
+   let some_value: Option<i32> = Some(5);
+   match some_value {
+       Some(x) => println!("值为 {}", x),
+       None => println!("无值"),
+   }
+
+   let result: Result<i32, &str> = Ok(10);
+   match result {
+       Ok(v) => println!("成功: {}", v),
+       Err(e) => println!("错误: {}", e),
+   }
+   ```
+
+2. **忽略值**：
+   - 用 `_` 忽略单个值：
+     ```rust
+     let (x, _, z) = (1, 2, 3); // 忽略第二个元素
+     ```
+   - 用 `..` 忽略剩余部分：
+     ```rust
+     let Point { x, .. } = Point { x: 0, y: 0, z: 0 }; // 忽略 y 和 z
+     ```
+
+---
+
+### 六、注意事项
+1. **所有权问题**：
+   - 匹配 `String` 等非 `Copy` 类型时，默认会转移所有权。使用 `ref` 或 `&` 避免：
+     ```rust
+     let s = String::from("hello");
+     match s {
+         ref r => println!("引用字符串: {}", r), // s 所有权未转移
+     }
+     ```
+
+2. **穷尽性检查**：
+   - 使用 `match` 时必须覆盖所有可能分支，否则编译失败。
+
+3. **模式优先级**：
+   - 模式按分支顺序匹配，首个匹配的分支会被执行。
+
+---
+
+
+
+
+
+#### 3.1 生命周期基础
+1. **悬垂引用问题**  
+   - 生命周期确保引用有效的作用域  
+
+2. **借用检查器规则**  
+   - 编译器通过生命周期标注验证引用有效性  
+
+3. **函数签名中的生命周期**  
+   - 使用泛型生命周期参数（如 `'a`）标注引用关系  
+   - 返回值的生命周期必须与输入参数相关联  
+
+4. **结构体中的生命周期**  
+   - 结构体字段若包含引用，需显式标注生命周期  
+
+5. **生命周期消除规则**  
+   - 每个引用参数自动获得独立生命周期  
+   - 单个输入生命周期参数被赋予所有输出生命周期  
+   - 方法中 `&self` 或 `&mut self` 的生命周期赋予输出  
+   
+```
+// 函数生命周期标注
+fn longest<'a>(s1: &'a str, s2: &'a str) -> &'a str {
+    if s1.len() > s2.len() { s1 } else { s2 }
+}
+
+// 结构体生命周期标注
+struct Highlight<'a> {
+    text: &'a str,
+}
+let text = String::from("hello");
+let h = Highlight { text: &text };
+```
+
+
+---
+
+#### 3.2 模式匹配
+1. **`match` 表达式**  
+   - 必须穷举所有可能性  
+   - 使用 `_` 匹配剩余情况  
+
+2. **`if let` 语法**  
+   - 简化单分支匹配场景  
+
+3. **模式适用场景**  
+   - 变量赋值（如 `let (x, y) = (1, 2);`）  
+   - 函数参数、`for` 循环等  
+
+4. **全模式列表**  
+   - 字面值匹配  
+   - 解构数组/结构体/枚举  
+   - 范围模式（`..=`）  
+   - 引用匹配（`&val`）  
+   
+```
+// match 表达式
+let value = Some(5);
+match value {
+    Some(n) => println!("Value is {}", n),
+    None => println!("No value"),
+}
+
+// if let 语法
+if let Some(5) = value {
+    println!("Got five");
+}
+
+// 解构结构体
+struct Point { x: i32, y: i32 }
+let p = Point { x: 0, y: 7 };
+let Point { x: a, y: b } = p;
+```
+
+
+---
+
+以下是《Rust语言圣经》中 **生命周期**、**函数式编程（闭包、迭代器）** 和 **深入类型** 的核心知识点整理（简化版）：
+
+---
+
+## 一、生命周期（Lifetimes）
+
+### 1. 生命周期的作用
+- **核心问题**：确保引用指向的数据在引用有效期间始终有效，避免悬垂引用。
+- **编译器检查**：Rust 通过生命周期标记分析引用的有效性，不涉及运行时开销。
+
+### 2. 基本语法
+- **标注方式**：在引用类型后添加 `'a`（生命周期参数）：
+  ```rust
+  fn longest<'a>(s1: &'a str, s2: &'a str) -> &'a str {
+      if s1.len() > s2.len() { s1 } else { s2 }
+  }
+  ```
+  - 表示输入的两个引用和返回值必须拥有相同的生命周期 `'a`。
+
+### 3. 常见场景
+- **结构体中的引用**：结构体包含引用时必须标注生命周期：
+  ```rust
+  struct ImportantExcerpt<'a> {
+      part: &'a str,  // 字段引用必须比结构体实例存活更久
+  }
+
+  fn main() {
+      let novel = String::from("Call me Ishmael...");
+      let first_sentence = novel.split('.').next().unwrap();
+      let i = ImportantExcerpt { part: first_sentence };  // 合法
+  }
+  ```
+
+- **生命周期省略规则**（编译器自动推断场景）：
+  1. 每个输入引用自动分配一个生命周期参数。
+  2. 若只有一个输入生命周期参数，它会被赋予所有输出生命周期参数。
+  3. 若方法有 `&self` 或 `&mut self`，输出生命周期与 `self` 一致。
+
+---
+
+## 二、函数式编程：闭包与迭代器
+
+### 1. 闭包（Closures）
+- **定义**：可捕获环境的匿名函数，类似 lambda 表达式。
+- **基本语法**：
+  ```rust
+  let add = |x, y| x + y;       // 类型自动推断
+  let square = |x: i32| -> i32 { x * x };  // 显式标注类型
+  ```
+- **捕获环境变量**：
+  - **默认借用**：闭包优先通过不可变引用捕获变量。
+  - **`move` 关键字**：强制获取环境变量的所有权：
+    ```rust
+    let s = String::from("hello");
+    let closure = move || println!("{}", s);  // s 的所有权被移动到闭包
+    ```
+
+### 2. 迭代器（Iterators）
+- **核心 Trait**：`Iterator`，需实现 `next` 方法：
+  ```rust
+  struct Counter { count: u32 }
+
+  impl Iterator for Counter {
+      type Item = u32;
+      fn next(&mut self) -> Option<Self::Item> {
+          self.count += 1;
+          if self.count < 6 { Some(self.count) } else { None }
+      }
+  }
+  ```
+
+- **常用方法**：
+  - **转换**：`map`、`filter`、`take`。
+  - **消费**：`sum`、`collect`、`find`。
+  ```rust
+  let numbers = vec![1, 2, 3];
+  let doubled: Vec<_> = numbers.iter().map(|x| x * 2).collect();  // [2, 4, 6]
+  ```
+
+- **惰性求值**：迭代器方法链不会立即执行，直到调用消费方法（如 `collect`）。
+
+---
+
+## 三、深入类型
+
+### 1. 类型别名（Type Aliases）
+- **简化复杂类型**：
+  ```rust
+  type Kilometers = i32;  // Kilometers 是 i32 的别名
+  type Thunk = Box<dyn Fn() + Send + 'static>;  // 简化复杂 Trait 对象
+  ```
+
+### 2. Never 类型（`!`）
+- **用途**：表示永不返回的函数（发散函数）：
+  ```rust
+  fn forever() -> ! {
+      loop { println!("无限循环..."); }
+  }
+  ```
+
+### 3. 动态大小类型（DST）
+- **常见类型**：`str`、`[T]`、`dyn Trait`。
+- **限制**：必须通过指针使用（如 `&str`、`Box<dyn Trait>`）。
+
+### 4. Newtype 模式
+- **作用**：为现有类型创建新类型，增加类型安全性：
+  ```rust
+  struct Meters(u32);  // 封装 u32 表示米
+  let length = Meters(5);
+  ```
+
+---
+
+小总结：
+
+ 生命周期
+- 通过标注帮助编译器验证引用的有效性。
+- 结构体包含引用时必须显式标注生命周期。
+
+闭包与迭代器
+- 闭包：轻量级匿名函数，可捕获环境变量。
+- 迭代器：惰性操作集合，支持链式调用。
+
+深入类型
+- 类型别名简化复杂类型。
+- `!` 类型用于永不返回的场景。
+- Newtype 模式增强类型安全性。
+
+---
+
+
+
+
+[实验指导书链接](https://learningos.cn/rCore-Camp-Guide-2024A/)
+
